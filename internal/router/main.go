@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/bigusef/texorbit/internal/database"
 	"github.com/bigusef/texorbit/pkg/config"
 	"github.com/bigusef/texorbit/pkg/util"
 	"github.com/go-chi/chi/v5"
@@ -9,7 +10,7 @@ import (
 	"net/http"
 )
 
-func New(conf *config.Setting) http.Handler {
+func New(conf *config.Setting, queries *database.Queries) http.Handler {
 	router := chi.NewRouter()
 	setupMiddleware(router)
 

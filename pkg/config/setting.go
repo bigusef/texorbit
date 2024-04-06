@@ -1,11 +1,13 @@
 package config
 
 import (
+	"log"
 	"os"
 )
 
 type Setting struct {
-	Port string
+	Port       string
+	ConnString string
 }
 
 func NewSetting() *Setting {
@@ -15,5 +17,11 @@ func NewSetting() *Setting {
 		port = "8080"
 	}
 
-	return &Setting{Port: port}
+	// getting db url from environment variable
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal(`messing environment variable "DATABASE_URL", terminate server....`)
+	}
+
+	return &Setting{Port: port, ConnString: dsn}
 }

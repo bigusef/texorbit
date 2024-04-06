@@ -1,0 +1,13 @@
+version: "2"
+
+sql:
+  - engine: "postgresql"
+    queries: "sql/queries"
+    schema: "sql/schema"
+    database:
+      uri: ${DATABASE_URL}
+    gen:
+      go:
+        package: database
+        sql_package: "pgx/v5"
+        out: "internal/database"

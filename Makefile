@@ -9,7 +9,7 @@ test:
 
 # can pass migration file name as name=file_name
 migrate_init:
-	@goose -dir sql/schema postgres ${DATABASE_URL} create $(name) sql
+	@goose -s -dir sql/schema postgres ${DATABASE_URL} create $(name) sql
 
 migrate_up:
 	@goose -dir sql/schema postgres ${DATABASE_URL} up

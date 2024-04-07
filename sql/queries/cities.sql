@@ -1,15 +1,21 @@
 -- name: CreateCity :one
-INSERT INTO cities
-VALUES ($1, $2)
+INSERT INTO cities(name_en, name_ar, is_active)
+VALUES (@name_en, @name_ar, @is_active)
 RETURNING id;
+
+-- name: CitiesCount :one
+SELECT COUNT(*)
+FROM cities;
 
 -- name: ListAllCities :many
 SELECT *
 FROM cities
+ORDER BY id
 LIMIT $1 OFFSET $2;
 
 -- name: ListActiveCity :many
 SELECT *
 FROM cities
-WHERE is_active=true
+WHERE is_active = true
+ORDER BY id
 LIMIT $1 OFFSET $2;

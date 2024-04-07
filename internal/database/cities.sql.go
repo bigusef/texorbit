@@ -7,23 +7,34 @@ package database
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const citiesCount = `-- name: CitiesCount :one
+SELECT COUNT(*)
+FROM cities
+`
+
+func (q *Queries) CitiesCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, citiesCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createCity = `-- name: CreateCity :one
-INSERT INTO cities
-VALUES ($1, $2)
+INSERT INTO cities(name_en, name_ar, is_active)
+VALUES ($1, $2, $3)
 RETURNING id
 `
 
 type CreateCityParams struct {
-	Column1 pgtype.Int8
-	Column2 pgtype.Text
+	NameEn   string
+	NameAr   string
+	IsActive bool
 }
 
 func (q *Queries) CreateCity(ctx context.Context, arg CreateCityParams) (int64, error) {
-	row := q.db.QueryRow(ctx, createCity, arg.Column1, arg.Column2)
+	row := q.db.QueryRow(ctx, createCity, arg.NameEn, arg.NameAr, arg.IsActive)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -32,7 +43,8 @@ func (q *Queries) CreateCity(ctx context.Context, arg CreateCityParams) (int64, 
 const listActiveCity = `-- name: ListActiveCity :many
 SELECT id, name_en, name_ar, is_active
 FROM cities
-WHERE is_active=true
+WHERE is_active = true
+ORDER BY id
 LIMIT $1 OFFSET $2
 `
 
@@ -69,6 +81,7 @@ func (q *Queries) ListActiveCity(ctx context.Context, arg ListActiveCityParams) 
 const listAllCities = `-- name: ListAllCities :many
 SELECT id, name_en, name_ar, is_active
 FROM cities
+ORDER BY id
 LIMIT $1 OFFSET $2
 `
 

@@ -20,6 +20,7 @@ func New(conf *config.Setting, queries *database.Queries) http.Handler {
 	})
 
 	// mount all internal routers
+	router.Mount("/city", newCityRouter(conf, queries))
 
 	return router
 }

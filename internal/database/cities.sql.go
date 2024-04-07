@@ -40,6 +40,17 @@ func (q *Queries) CreateCity(ctx context.Context, arg CreateCityParams) (int64, 
 	return id, err
 }
 
+const deleteCity = `-- name: DeleteCity :exec
+DELETE
+FROM cities
+WHERE id = $1
+`
+
+func (q *Queries) DeleteCity(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteCity, id)
+	return err
+}
+
 const listActiveCity = `-- name: ListActiveCity :many
 SELECT id, name_en, name_ar, is_active
 FROM cities
@@ -113,4 +124,37 @@ func (q *Queries) ListAllCities(ctx context.Context, arg ListAllCitiesParams) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCity = `-- name: UpdateCity :one
+UPDATE cities
+SET name_en=$1,
+    name_ar=$2,
+    is_active=$3
+WHERE id = $4
+RETURNING id, name_en, name_ar, is_active
+`
+
+type UpdateCityParams struct {
+	NameEn   string
+	NameAr   string
+	IsActive bool
+	ID       int64
+}
+
+func (q *Queries) UpdateCity(ctx context.Context, arg UpdateCityParams) (City, error) {
+	row := q.db.QueryRow(ctx, updateCity,
+		arg.NameEn,
+		arg.NameAr,
+		arg.IsActive,
+		arg.ID,
+	)
+	var i City
+	err := row.Scan(
+		&i.ID,
+		&i.NameEn,
+		&i.NameAr,
+		&i.IsActive,
+	)
+	return i, err
 }

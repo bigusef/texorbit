@@ -19,3 +19,16 @@ FROM cities
 WHERE is_active = true
 ORDER BY id
 LIMIT $1 OFFSET $2;
+
+-- name: UpdateCity :one
+UPDATE cities
+SET name_en=$1,
+    name_ar=$2,
+    is_active=$3
+WHERE id = $4
+RETURNING *;
+
+-- name: DeleteCity :exec
+DELETE
+FROM cities
+WHERE id = $1;

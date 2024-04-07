@@ -148,22 +148,32 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: try to make ListActiveCityParams AND ListAllCitiesParams one struct
 	cities, err := h.queries.ListActiveCity(r.Context(), db.ListActiveCityParams{
-		Limit:  offset,
-		Offset: limit,
+		Limit:  limit,
+		Offset: offset,
 	})
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	requestLang := r.Header.Get("Accept-Language")
 	response := make([]activeCityResponse, len(cities))
 	for i, city := range cities {
+		var name string
+		if requestLang == "ar" {
+			name = city.NameAr
+		} else {
+			name = city.NameEn
+		}
+
 		response[i] = activeCityResponse{
 			ID:   city.ID,
-			Name: city.NameEn, // TODO: return name based on city
+			Name: name,
 		}
 	}
 
+	// get total cities count
+	//TODO: fix the issue in city count
 	totalCount, err := h.queries.CitiesCount(r.Context())
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())

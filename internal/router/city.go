@@ -8,21 +8,55 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"net/http"
-	"reflect"
 	"strconv"
-	"strings"
 )
 
-type cityHandler struct {
-	conf    *config.Setting
-	queries *db.Queries
+type cityRouter struct {
+	conf     *config.Setting
+	queries  *db.Queries
+	validate *validator.Validate
 }
 
-func newCityRouter(conf *config.Setting, queries *db.Queries) *chi.Mux {
+type cityInput struct {
+	NameEn   string `json:"name_en" validate:"required"`
+	NameAr   string `json:"name_ar" validate:"required"`
+	IsActive *bool  `json:"is_active,omitempty"`
+}
+
+type cityResponse struct {
+	ID       int64  `json:"id"`
+	NameEn   string `json:"name_en"`
+	NameAr   string `json:"name_ar"`
+	IsActive bool   `json:"is_active"`
+}
+
+func getPaginationParams(r *http.Request) (int64, int64, error) {
+	var l, o int64 = 10, 0
+
+	if param, ok := r.URL.Query()["limit"]; ok && len(param[0]) > 0 {
+		limitInt, err := strconv.ParseInt(param[0], 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+		l = limitInt
+	}
+
+	if param, ok := r.URL.Query()["offset"]; ok && len(param[0]) > 0 {
+		offsetInt, err := strconv.ParseInt(param[0], 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+		o = offsetInt
+	}
+	return l, o, nil
+}
+
+func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validator.Validate) *chi.Mux {
 	router := chi.NewRouter()
-	handler := &cityHandler{
-		queries: queries,
-		conf:    conf,
+	handler := &cityRouter{
+		queries:  queries,
+		conf:     conf,
+		validate: validate,
 	}
 
 	router.Post("/", handler.createCity)
@@ -34,30 +68,14 @@ func newCityRouter(conf *config.Setting, queries *db.Queries) *chi.Mux {
 	return router
 }
 
-func (h *cityHandler) createCity(w http.ResponseWriter, r *http.Request) {
-
-	type CityInput struct {
-		NameEn   string `json:"name_en" validate:"required"`
-		NameAr   string `json:"name_ar" validate:"required"`
-		IsActive *bool  `json:"is_active,omitempty"`
-	}
-
-	var input CityInput
+func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
+	var input cityInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	validate := validator.New(validator.WithRequiredStructEnabled())
-	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
-		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
-		// skip if tag key says it should be ignored
-		if name == "-" {
-			return ""
-		}
-		return name
-	})
-	if err := validate.Struct(input); err != nil {
+	if err := h.validate.Struct(input); err != nil {
 		ts := map[string]string{}
 		for _, err := range err.(validator.ValidationErrors) {
 			ts[err.Field()] = err.Tag()
@@ -72,13 +90,14 @@ func (h *cityHandler) createCity(w http.ResponseWriter, r *http.Request) {
 		input.IsActive = &defaultState
 	}
 
-	params := db.CreateCityParams{
-		NameEn:   input.NameEn,
-		NameAr:   input.NameAr,
-		IsActive: *input.IsActive,
-	}
-
-	id, err := h.queries.CreateCity(r.Context(), params)
+	id, err := h.queries.CreateCity(
+		r.Context(),
+		db.CreateCityParams{
+			NameEn:   input.NameEn,
+			NameAr:   input.NameAr,
+			IsActive: *input.IsActive,
+		},
+	)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusInternalServerError, err.Error())
 		return
@@ -87,43 +106,16 @@ func (h *cityHandler) createCity(w http.ResponseWriter, r *http.Request) {
 	util.JsonResponseWriter(w, http.StatusCreated, map[string]int64{"id": id})
 }
 
-func (h *cityHandler) listCities(w http.ResponseWriter, r *http.Request) {
-	var l, o int64 = 10, 0
-
-	if limitQueryParam, ok := r.URL.Query()["limit"]; ok && len(limitQueryParam[0]) > 0 {
-		limitInt, err := strconv.ParseInt(limitQueryParam[0], 10, 64)
-		if err != nil {
-			util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		l = limitInt
+func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
+	limit, offset, err := getPaginationParams(r)
+	if err != nil {
+		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 	}
 
-	if offsetQueryParam, ok := r.URL.Query()["offset"]; ok && len(offsetQueryParam[0]) > 0 {
-		offsetInt, err := strconv.ParseInt(offsetQueryParam[0], 10, 64)
-		if err != nil {
-			util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		o = offsetInt
-	}
-
-	totalCount, err := h.queries.CitiesCount(r.Context())
+	cities, err := h.queries.ListAllCities(r.Context(), db.ListAllCitiesParams{Limit: limit, Offset: offset})
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	cities, err := h.queries.ListAllCities(r.Context(), db.ListAllCitiesParams{Limit: l, Offset: o})
-	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	type cityResponse struct {
-		ID       int64  `json:"id"`
-		NameEn   string `json:"name_en"`
-		NameAr   string `json:"name_ar"`
-		IsActive bool   `json:"is_active"`
 	}
 
 	response := make([]cityResponse, len(cities))
@@ -136,17 +128,23 @@ func (h *cityHandler) listCities(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	totalCount, err := h.queries.CitiesCount(r.Context())
+	if err != nil {
+		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	util.JsonListResponseWriter(w, http.StatusOK, response, totalCount)
 }
 
-func (h *cityHandler) listActiveCities(w http.ResponseWriter, r *http.Request) {
+func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *cityHandler) updateCity(w http.ResponseWriter, r *http.Request) {
+func (h *cityRouter) updateCity(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *cityHandler) deleteCity(w http.ResponseWriter, r *http.Request) {
+func (h *cityRouter) deleteCity(w http.ResponseWriter, r *http.Request) {
 
 }

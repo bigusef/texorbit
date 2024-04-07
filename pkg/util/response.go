@@ -11,7 +11,6 @@ func JsonResponseWriter(w http.ResponseWriter, code int, payload interface{}) {
 
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }
 

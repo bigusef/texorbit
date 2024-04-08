@@ -12,7 +12,7 @@ import (
 const activeCityCount = `-- name: ActiveCityCount :one
 SELECT COUNT(*)
 FROM cities
-WHERE is_active = true
+WHERE is_active = TRUE
 `
 
 func (q *Queries) ActiveCityCount(ctx context.Context) (int64, error) {
@@ -67,7 +67,7 @@ func (q *Queries) DeleteCity(ctx context.Context, id int64) error {
 const listActiveCity = `-- name: ListActiveCity :many
 SELECT id, name_en, name_ar, is_active
 FROM cities
-WHERE is_active = true
+WHERE is_active = TRUE
 ORDER BY id
 LIMIT $1 OFFSET $2
 `

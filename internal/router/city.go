@@ -38,29 +38,7 @@ type activeCityResponse struct {
 	Name string `json:"name"`
 }
 
-// Services
-func getPaginationParams(r *http.Request) (int64, int64, error) {
-	var l, o int64 = 10, 0
-
-	if param, ok := r.URL.Query()["limit"]; ok && len(param[0]) > 0 {
-		limitInt, err := strconv.ParseInt(param[0], 10, 64)
-		if err != nil {
-			return 0, 0, err
-		}
-		l = limitInt
-	}
-
-	if param, ok := r.URL.Query()["offset"]; ok && len(param[0]) > 0 {
-		offsetInt, err := strconv.ParseInt(param[0], 10, 64)
-		if err != nil {
-			return 0, 0, err
-		}
-		o = offsetInt
-	}
-	return l, o, nil
-}
-
-func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validator.Validate) *chi.Mux {
+func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validator.Validate) http.Handler {
 	router := chi.NewRouter()
 	handler := &cityRouter{
 		queries:  queries,
@@ -68,9 +46,12 @@ func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validato
 		validate: validate,
 	}
 
+	//public
+	router.Get("/active", handler.listActiveCities)
+
+	//only staff
 	router.Post("/", handler.createCity)
 	router.Get("/", handler.listCities)
-	router.Get("/active", handler.listActiveCities)
 	router.Put("/{id}", handler.updateCity)
 	router.Delete("/{id}", handler.deleteCity)
 
@@ -112,7 +93,7 @@ func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
-	limit, offset, err := getPaginationParams(r)
+	limit, offset, err := util.GetPaginationParams(r)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 	}
@@ -143,7 +124,7 @@ func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
-	limit, offset, err := getPaginationParams(r)
+	limit, offset, err := util.GetPaginationParams(r)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 	}

@@ -10,7 +10,7 @@ FROM cities;
 -- name: ActiveCityCount :one
 SELECT COUNT(*)
 FROM cities
-WHERE is_active = true;
+WHERE is_active = TRUE;
 
 -- name: ListAllCities :many
 SELECT *
@@ -21,7 +21,7 @@ LIMIT $1 OFFSET $2;
 -- name: ListActiveCity :many
 SELECT *
 FROM cities
-WHERE is_active = true
+WHERE is_active = TRUE
 ORDER BY id
 LIMIT $1 OFFSET $2;
 

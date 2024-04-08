@@ -79,7 +79,7 @@ func initHandler(conf *config.Setting, queries *database.Queries, validate *vali
 	})
 
 	// mount all internal routers
-	router.Mount("/auth", router2.NewAuthRouter())
+	router.Mount("/auth", router2.NewAuthRouter(conf, queries, validate))
 	router.Mount("/city", router2.NewCityRouter(conf, queries, validate))
 
 	return router

@@ -2,16 +2,18 @@ package router
 
 import (
 	"encoding/json"
+	"errors"
 	db "github.com/bigusef/texorbit/internal/database"
 	"github.com/bigusef/texorbit/pkg/config"
 	"github.com/bigusef/texorbit/pkg/util"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strconv"
 )
 
-// Schema data DTOs
+// Schema data
 type cityRouter struct {
 	conf     *config.Setting
 	queries  *db.Queries
@@ -173,8 +175,7 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get total cities count
-	//TODO: fix the issue in city count
-	totalCount, err := h.queries.CitiesCount(r.Context())
+	totalCount, err := h.queries.ActiveCityCount(r.Context())
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return
@@ -217,8 +218,12 @@ func (h *cityRouter) updateCity(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		// TODO: cover case row not found and issue in update process
-		util.ErrorResponseWriter(w, http.StatusNotFound, err.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			util.ErrorResponseWriter(w, http.StatusNotFound, "City not found")
+			return
+		}
+
+		util.ErrorResponseWriter(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -240,6 +245,7 @@ func (h *cityRouter) deleteCity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//TODO: handle if id not exists
 	err = h.queries.DeleteCity(r.Context(), id)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusInternalServerError, err.Error())

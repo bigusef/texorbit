@@ -7,6 +7,11 @@ RETURNING id;
 SELECT COUNT(*)
 FROM cities;
 
+-- name: ActiveCityCount :one
+SELECT COUNT(*)
+FROM cities
+WHERE is_active = true;
+
 -- name: ListAllCities :many
 SELECT *
 FROM cities

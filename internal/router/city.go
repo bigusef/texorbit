@@ -7,6 +7,7 @@ import (
 	"github.com/bigusef/texorbit/pkg/config"
 	"github.com/bigusef/texorbit/pkg/util"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/jwtauth/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v5"
 	"net/http"
@@ -39,23 +40,28 @@ type activeCityResponse struct {
 }
 
 func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validator.Validate) http.Handler {
-	router := chi.NewRouter()
+	r := chi.NewRouter()
 	handler := &cityRouter{
 		queries:  queries,
 		conf:     conf,
 		validate: validate,
 	}
 
-	//public
-	router.Get("/active", handler.listActiveCities)
-
 	//only staff
-	router.Post("/", handler.createCity)
-	router.Get("/", handler.listCities)
-	router.Put("/{id}", handler.updateCity)
-	router.Delete("/{id}", handler.deleteCity)
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(conf.AccessAuth))
+		r.Use(jwtauth.Authenticator(conf.AccessAuth))
 
-	return router
+		r.Post("/", handler.createCity)
+		r.Get("/", handler.listCities)
+		r.Put("/{id}", handler.updateCity)
+		r.Delete("/{id}", handler.deleteCity)
+	})
+
+	//public
+	r.Get("/active", handler.listActiveCities)
+
+	return r
 }
 
 // Handler's
@@ -93,6 +99,8 @@ func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
+	// TODO: convert to middleware
+	// 	https://github.com/go-chi/chi/blob/c1f2a7a12e66b0ca0faf57adad98bf82c767df1f/_examples/rest/main.go#L248
 	limit, offset, err := util.GetPaginationParams(r)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())

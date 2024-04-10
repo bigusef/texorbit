@@ -20,7 +20,12 @@ import (
 
 func main() {
 	ctx := context.Background()
-	setting := config.NewSetting()
+
+	// get Application Environment Settings
+	setting, err := config.NewSetting()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
 	validate := initValidate()
 
@@ -61,8 +66,10 @@ func initValidate() *validator.Validate {
 
 func initHandler(conf *config.Setting, queries *database.Queries, validate *validator.Validate) http.Handler {
 	router := chi.NewRouter()
+
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
+
 	router.Use(middleware.AllowContentType("application/json"))
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"https://*", "http://*"},

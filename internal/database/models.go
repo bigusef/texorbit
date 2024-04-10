@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -62,8 +63,8 @@ type City struct {
 }
 
 type User struct {
-	ID          int64
-	Name        pgtype.Text
+	ID          uuid.UUID
+	Name        string
 	Email       string
 	PhoneNumber pgtype.Text
 	Avatar      pgtype.Text

@@ -11,55 +11,69 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const changeUserStatus = `-- name: ChangeUserStatus :exec
-UPDATE users
-SET status=$1
-WHERE id=$2
+const allStaffUser = `-- name: AllStaffUser :many
+SELECT id, name, email, phone_number, avatar, status, is_staff, join_date, last_login
+FROM users
+WHERE is_staff = TRUE
+ORDER BY join_date DESC
+LIMIT $1 OFFSET $2
 `
 
-type ChangeUserStatusParams struct {
-	Status AccountStatus
-	ID     int64
+type AllStaffUserParams struct {
+	Limit  int64
+	Offset int64
 }
 
-func (q *Queries) ChangeUserStatus(ctx context.Context, arg ChangeUserStatusParams) error {
-	_, err := q.db.Exec(ctx, changeUserStatus, arg.Status, arg.ID)
-	return err
+func (q *Queries) AllStaffUser(ctx context.Context, arg AllStaffUserParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, allStaffUser, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.PhoneNumber,
+			&i.Avatar,
+			&i.Status,
+			&i.IsStaff,
+			&i.JoinDate,
+			&i.LastLogin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users(email, is_staff, join_date, last_login)
-VALUES ($1, $2, $3, $4)
-RETURNING id
+INSERT INTO users(name, email, avatar, is_staff, join_date, last_login)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
+RETURNING id, name, email, phone_number, avatar, status, is_staff, join_date, last_login
 `
 
 type CreateUserParams struct {
-	Email     string
-	IsStaff   bool
-	JoinDate  pgtype.Timestamptz
-	LastLogin pgtype.Timestamptz
+	Name    string
+	Email   string
+	Avatar  pgtype.Text
+	IsStaff bool
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int64, error) {
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createUser,
+		arg.Name,
 		arg.Email,
+		arg.Avatar,
 		arg.IsStaff,
-		arg.JoinDate,
-		arg.LastLogin,
 	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
-}
-
-const getUserByEmail = `-- name: GetUserByEmail :one
-Select id, name, email, phone_number, avatar, status, is_staff, join_date, last_login
-FROM users
-WHERE id=$1
-`
-
-func (q *Queries) GetUserByEmail(ctx context.Context, id int64) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -73,4 +87,40 @@ func (q *Queries) GetUserByEmail(ctx context.Context, id int64) (User, error) {
 		&i.LastLogin,
 	)
 	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+Select id, name, email, phone_number, avatar, status, is_staff, join_date, last_login
+FROM users
+WHERE email=$1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PhoneNumber,
+		&i.Avatar,
+		&i.Status,
+		&i.IsStaff,
+		&i.JoinDate,
+		&i.LastLogin,
+	)
+	return i, err
+}
+
+const staffCount = `-- name: StaffCount :one
+SELECT COUNT(*)
+FROM users
+WHERE is_staff = TRUE
+`
+
+func (q *Queries) StaffCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, staffCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	db "github.com/bigusef/texorbit/internal/database"
 	"github.com/bigusef/texorbit/pkg/config"
+	"github.com/bigusef/texorbit/pkg/middleware"
 	"github.com/bigusef/texorbit/pkg/util"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
@@ -53,14 +54,14 @@ func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validato
 		r.Use(jwtauth.Authenticator(conf.AccessAuth))
 		// TODO: add is staff auth permission
 
-		r.Post("/", handler.createCity)
+		r.With(middleware.Pagination).Post("/", handler.createCity)
 		r.Get("/", handler.listCities)
 		r.Put("/{id}", handler.updateCity)
 		r.Delete("/{id}", handler.deleteCity)
 	})
 
 	//public
-	r.Get("/active", handler.listActiveCities)
+	r.With(middleware.Pagination).Get("/active", handler.listActiveCities)
 
 	return r
 }
@@ -100,14 +101,15 @@ func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
-	// TODO: convert to middleware
-	// 	https://github.com/go-chi/chi/blob/c1f2a7a12e66b0ca0faf57adad98bf82c767df1f/_examples/rest/main.go#L248
-	limit, offset, err := util.GetPaginationParams(r)
-	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+	ctx := r.Context()
+
+	// get limit and offset from parsed ctx and create params
+	params := db.ListAllCitiesParams{
+		Limit:  ctx.Value("limit").(int64),
+		Offset: ctx.Value("offset").(int64),
 	}
 
-	cities, err := h.queries.ListAllCities(r.Context(), db.ListAllCitiesParams{Limit: limit, Offset: offset})
+	cities, err := h.queries.ListAllCities(ctx, params)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return
@@ -133,16 +135,15 @@ func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
-	limit, offset, err := util.GetPaginationParams(r)
-	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
-	}
+	ctx := r.Context()
 
 	//TODO: try to make ListActiveCityParams AND ListAllCitiesParams one struct
-	cities, err := h.queries.ListActiveCity(r.Context(), db.ListActiveCityParams{
-		Limit:  limit,
-		Offset: offset,
-	})
+	params := db.ListActiveCityParams{
+		Limit:  ctx.Value("limit").(int64),
+		Offset: ctx.Value("offset").(int64),
+	}
+
+	cities, err := h.queries.ListActiveCity(ctx, params)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return
@@ -165,7 +166,7 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get total cities count
-	totalCount, err := h.queries.ActiveCityCount(r.Context())
+	totalCount, err := h.queries.ActiveCityCount(ctx)
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return

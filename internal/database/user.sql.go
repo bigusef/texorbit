@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -89,10 +90,33 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const getUSerById = `-- name: GetUSerById :one
+SELECT id, name, email, phone_number, avatar, status, is_staff, join_date, last_login
+FROM users
+WHERE id = $1
+`
+
+func (q *Queries) GetUSerById(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUSerById, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PhoneNumber,
+		&i.Avatar,
+		&i.Status,
+		&i.IsStaff,
+		&i.JoinDate,
+		&i.LastLogin,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 Select id, name, email, phone_number, avatar, status, is_staff, join_date, last_login
 FROM users
-WHERE email=$1
+WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {

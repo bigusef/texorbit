@@ -51,6 +51,7 @@ func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validato
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(conf.AccessAuth))
 		r.Use(jwtauth.Authenticator(conf.AccessAuth))
+		// TODO: add is staff auth permission
 
 		r.Post("/", handler.createCity)
 		r.Get("/", handler.listCities)

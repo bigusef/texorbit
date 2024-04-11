@@ -3,13 +3,13 @@ package router
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	db "github.com/bigusef/texorbit/internal/database"
 	"github.com/bigusef/texorbit/pkg/config"
 	"github.com/bigusef/texorbit/pkg/util"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"net/http"
@@ -41,7 +41,10 @@ func NewAuthRouter(conf *config.Setting, queries *db.Queries, validate *validato
 	router.Post("/staff-login", handler.staffLogin)
 
 	// staff and customers
-	router.With(jwtauth.Verifier(conf.RefreshAuth), jwtauth.Authenticator(conf.RefreshAuth)).Get("/refresh", handler.refreshAccessToken)
+	router.With(
+		jwtauth.Verifier(conf.RefreshAuth),
+		jwtauth.Authenticator(conf.RefreshAuth),
+	).Get("/refresh", handler.refreshAccessToken)
 
 	return router
 }
@@ -71,7 +74,7 @@ func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
 	// start of logic get or create user
 	user, err := h.queries.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
-		if err.Error() != pgx.ErrNoRows.Error() {
+		if !errors.Is(err, pgx.ErrNoRows) {
 			util.ErrorResponseWriter(w, http.StatusInternalServerError, "issue in getting user data")
 			return
 		}
@@ -96,29 +99,29 @@ func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate user not blocked
-	if user.Status == db.AccountStatusDeleted || user.Status == db.AccountStatusSuspended {
-		util.ErrorResponseWriter(w, http.StatusForbidden, "There are issue in your account please contact with customer support.")
+	if !user.IsActive() {
+		util.ErrorResponseWriter(w, http.StatusForbidden, "There are issue in your account, please contact with support.")
 	}
 
+	// update user data
+	// TODO: complete this
+	//  - update last login
+	//  - update user data from payload
+
 	// get access token and refresh token
-	_, accessToken, accessErr := h.conf.AccessAuth.Encode(
+	_, accessToken, _ := h.conf.AccessAuth.Encode(
 		map[string]interface{}{
-			"user":  user.ID,
-			"staff": user.IsStaff,
+			"sub":   user.ID.String(),
 			"exp":   time.Now().Add(time.Minute * 15).Unix(),
-		},
-	)
-	_, refreshToken, refreshErr := h.conf.RefreshAuth.Encode(
-		map[string]interface{}{
-			"user":  user.ID,
 			"staff": user.IsStaff,
-			"exp":   time.Now().Add(time.Hour * 72).Unix(),
 		},
 	)
-	if accessErr != nil || refreshErr != nil {
-		util.ErrorResponseWriter(w, http.StatusInternalServerError, "failed to generate token")
-		return
-	}
+	_, refreshToken, _ := h.conf.RefreshAuth.Encode(
+		map[string]interface{}{
+			"sub": user.ID.String(),
+			"exp": time.Now().Add(time.Hour * 72).Unix(),
+		},
+	)
 
 	response := struct {
 		Name         string
@@ -172,29 +175,23 @@ func (h *userRouter) staffLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !user.IsStaff {
-		util.ErrorResponseWriter(w, http.StatusForbidden, "you are not authorized to access this resource.")
-		return
-	}
-
-	// validate user not blocked
-	if user.Status == db.AccountStatusDeleted || user.Status == db.AccountStatusSuspended {
+	if !user.IsActive() || !user.IsStaff {
 		util.ErrorResponseWriter(w, http.StatusForbidden, "There are issue in your account please contact with your IT support.")
+		return
 	}
 
 	// get access token and refresh token
 	_, accessToken, accessErr := h.conf.AccessAuth.Encode(
 		map[string]interface{}{
-			"user":  user.ID,
-			"staff": user.IsStaff,
+			"sub":   user.ID.String(),
 			"exp":   time.Now().Add(time.Minute * 15).Unix(),
+			"staff": user.IsStaff,
 		},
 	)
 	_, refreshToken, refreshErr := h.conf.RefreshAuth.Encode(
 		map[string]interface{}{
-			"user":  user.ID,
-			"staff": user.IsStaff,
-			"exp":   time.Now().Add(time.Hour * 24).Unix(),
+			"sub": user.ID.String(),
+			"exp": time.Now().Add(time.Hour * 24).Unix(),
 		},
 	)
 	if accessErr != nil || refreshErr != nil {
@@ -219,14 +216,43 @@ func (h *userRouter) staffLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.JsonResponseWriter(w, http.StatusOK, response)
-
 }
 
 func (h *userRouter) refreshAccessToken(w http.ResponseWriter, r *http.Request) {
-	token, _, err := jwtauth.FromContext(r.Context())
+	ctx := r.Context()
+
+	// get userId from refresh token
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	sub := claims["sub"].(string)
+	userId, err := uuid.Parse(sub)
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusUnauthorized, "failed to refresh access token")
+		util.ErrorResponseWriter(w, http.StatusBadRequest, "invalid user id")
+		return
 	}
 
-	fmt.Printf("%v\n", token)
+	// get user from DB
+	user, err := h.queries.GetUSerById(ctx, userId)
+	if err != nil {
+		util.JsonResponseWriter(w, http.StatusNotFound, "this user does not exist in the system.")
+		return
+	}
+
+	// user validation
+	if !user.IsActive() {
+		util.ErrorResponseWriter(w, http.StatusForbidden, "There are issue in your account, please contact with support.")
+		return
+	}
+
+	// generate new access token
+	_, accessToken, _ := h.conf.AccessAuth.Encode(
+		map[string]interface{}{
+			"sub":   user.ID.String(),
+			"exp":   time.Now().Add(time.Minute * 15).Unix(),
+			"staff": user.IsStaff,
+		},
+	)
+
+	util.JsonResponseWriter(w, http.StatusOK, map[string]string{
+		"access_token": accessToken,
+	})
 }

@@ -13,7 +13,12 @@ WHERE is_staff = TRUE;
 -- name: GetUserByEmail :one
 Select *
 FROM users
-WHERE email=$1;
+WHERE email = @email;
+
+-- name: GetUSerById :one
+SELECT *
+FROM users
+WHERE id = @id;
 
 -- name: CreateUser :one
 INSERT INTO users(name, email, avatar, is_staff, join_date, last_login)

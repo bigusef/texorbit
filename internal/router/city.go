@@ -54,8 +54,8 @@ func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validato
 		r.Use(jwtauth.Authenticator(conf.AccessAuth))
 		// TODO: add is staff auth permission
 
-		r.With(middleware.Pagination).Post("/", handler.createCity)
-		r.Get("/", handler.listCities)
+		r.Post("/", handler.createCity)
+		r.With(middleware.Pagination).Get("/", handler.listCities)
 		r.Put("/{id}", handler.updateCity)
 		r.Delete("/{id}", handler.deleteCity)
 	})
@@ -104,12 +104,8 @@ func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// get limit and offset from parsed ctx and create params
-	params := db.ListAllCitiesParams{
-		Limit:  ctx.Value("limit").(int64),
-		Offset: ctx.Value("offset").(int64),
-	}
-
-	cities, err := h.queries.ListAllCities(ctx, params)
+	page := ctx.Value("pagination").(*middleware.Paginator)
+	cities, err := h.queries.ListAllCities(ctx, db.ListAllCitiesParams{page.Limit, page.Offset})
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return
@@ -138,12 +134,8 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	//TODO: try to make ListActiveCityParams AND ListAllCitiesParams one struct
-	params := db.ListActiveCityParams{
-		Limit:  ctx.Value("limit").(int64),
-		Offset: ctx.Value("offset").(int64),
-	}
-
-	cities, err := h.queries.ListActiveCity(ctx, params)
+	page := ctx.Value("pagination").(*middleware.Paginator)
+	cities, err := h.queries.ListActiveCity(ctx, db.ListActiveCityParams{page.Limit, page.Limit})
 	if err != nil {
 		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
 		return

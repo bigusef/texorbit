@@ -6,39 +6,34 @@ import (
 	"strconv"
 )
 
-type contextKey string
-
-var limitKey contextKey = "limit"
-var offsetKey contextKey = "offset"
+// Paginator contains limit and offset values extracted from query parameters
+type Paginator struct {
+	Limit  int64
+	Offset int64
+}
 
 func Pagination(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		limit, ok := r.URL.Query()["limit"]
-		if !ok || len(limit[0]) < 1 {
-			limit = []string{"10"}
-		}
-		offset, ok := r.URL.Query()["offset"]
-		if !ok || len(offset[0]) < 1 {
-			offset = []string{"0"}
-		}
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		limitStr := r.URL.Query().Get("limit")
+		offsetStr := r.URL.Query().Get("offset")
 
-		limitInt, err := strconv.Atoi(limit[0])
-		if err != nil {
-			http.Error(w, "parameter 'limit' must be a number", http.StatusBadRequest)
-			return
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			limit = 10 // Default limit if invalid or missing
 		}
 
-		offsetInt, err := strconv.Atoi(offset[0])
-		if err != nil {
-			http.Error(w, "parameter 'offset' must be a number", http.StatusBadRequest)
-			return
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			offset = 0 // Default offset if invalid or missing
 		}
 
-		ctx := context.WithValue(r.Context(), limitKey, limitInt)
-		ctx = context.WithValue(ctx, offsetKey, offsetInt)
+		ctx := context.WithValue(r.Context(), "pagination", &Paginator{
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
 
-		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
 
-		next.ServeHTTP(w, r)
-	})
+	return http.HandlerFunc(fn)
 }

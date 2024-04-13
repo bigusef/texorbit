@@ -52,7 +52,7 @@ func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validato
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(conf.AccessAuth))
 		r.Use(jwtauth.Authenticator(conf.AccessAuth))
-		// TODO: add is staff auth permission
+		r.Use(middleware.StaffPermission)
 
 		r.Post("/", handler.createCity)
 		r.With(middleware.Pagination).Get("/", handler.listCities)
@@ -221,17 +221,17 @@ func (h *cityRouter) updateCity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cityRouter) deleteCity(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	//TODO: handle if id not exists
-	err = h.queries.DeleteCity(r.Context(), id)
-	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusInternalServerError, err.Error())
+	if err = h.queries.DeleteCity(ctx, id); err != nil {
+		http.Error(w, "Failed to delete city", http.StatusInternalServerError)
 		return
 	}
 

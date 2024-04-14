@@ -22,11 +22,3 @@ func JsonListResponseWriter(w http.ResponseWriter, code int, payload interface{}
 
 	JsonResponseWriter(w, code, response)
 }
-
-func ErrorResponseWriter(w http.ResponseWriter, code int, msg string) {
-	type errorResponse struct {
-		Error string `json:"error"`
-	}
-
-	JsonResponseWriter(w, code, errorResponse{msg})
-}

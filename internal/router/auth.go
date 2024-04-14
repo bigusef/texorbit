@@ -57,7 +57,7 @@ func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
 	createAccount := false
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, "invalid request payload")
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -75,7 +75,7 @@ func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
 	user, err := h.queries.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
-			util.ErrorResponseWriter(w, http.StatusInternalServerError, "issue in getting user data")
+			http.Error(w, "issue in getting user data", http.StatusInternalServerError)
 			return
 		}
 
@@ -91,7 +91,7 @@ func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
 			IsStaff: false,
 		})
 		if err != nil {
-			util.ErrorResponseWriter(w, http.StatusBadRequest, "failed to create user")
+			http.Error(w, "failed to create user", http.StatusBadRequest)
 			return
 		}
 
@@ -100,7 +100,8 @@ func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
 
 	// validate user not blocked
 	if !user.IsActive() {
-		util.ErrorResponseWriter(w, http.StatusForbidden, "There are issue in your account, please contact with support.")
+		http.Error(w, "There are issue in your account, please contact with support.", http.StatusForbidden)
+		return
 	}
 
 	// update user data
@@ -149,7 +150,7 @@ func (h *userRouter) staffLogin(w http.ResponseWriter, r *http.Request) {
 	var payload userInputData
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, "invalid request payload")
+		http.Error(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
@@ -167,16 +168,16 @@ func (h *userRouter) staffLogin(w http.ResponseWriter, r *http.Request) {
 	user, err := h.queries.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			util.ErrorResponseWriter(w, http.StatusNotFound, "this user does not exist in the system.")
+			http.Error(w, "this user does not exist in the system.", http.StatusNotFound)
 			return
 		}
 
-		util.ErrorResponseWriter(w, http.StatusInternalServerError, "issue in getting user data")
+		http.Error(w, "issue in getting user data", http.StatusInternalServerError)
 		return
 	}
 
 	if !user.IsActive() || !user.IsStaff {
-		util.ErrorResponseWriter(w, http.StatusForbidden, "There are issue in your account please contact with your IT support.")
+		http.Error(w, "There are issue in your account, Contact with your IT support.", http.StatusForbidden)
 		return
 	}
 
@@ -195,7 +196,7 @@ func (h *userRouter) staffLogin(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if accessErr != nil || refreshErr != nil {
-		util.ErrorResponseWriter(w, http.StatusInternalServerError, "failed to generate token")
+		http.Error(w, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
@@ -226,7 +227,7 @@ func (h *userRouter) refreshAccessToken(w http.ResponseWriter, r *http.Request) 
 	sub := claims["sub"].(string)
 	userId, err := uuid.Parse(sub)
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, "invalid user id")
+		http.Error(w, "invalid user id", http.StatusBadRequest)
 		return
 	}
 
@@ -239,7 +240,7 @@ func (h *userRouter) refreshAccessToken(w http.ResponseWriter, r *http.Request) 
 
 	// user validation
 	if !user.IsActive() {
-		util.ErrorResponseWriter(w, http.StatusForbidden, "There are issue in your account, please contact with support.")
+		http.Error(w, "There are issue in your account, please contact with support.", http.StatusForbidden)
 		return
 	}
 

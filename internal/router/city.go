@@ -70,7 +70,7 @@ func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validato
 func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
 	var input cityInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusInternalServerError, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 	page := ctx.Value("pagination").(*middleware.Paginator)
 	cities, err := h.queries.ListAllCities(ctx, db.ListAllCitiesParams{page.Limit, page.Offset})
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 
 	totalCount, err := h.queries.CitiesCount(r.Context())
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	page := ctx.Value("pagination").(*middleware.Paginator)
 	cities, err := h.queries.ListActiveCity(ctx, db.ListActiveCityParams{page.Limit, page.Limit})
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	// get total cities count
 	totalCount, err := h.queries.ActiveCityCount(ctx)
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -171,13 +171,13 @@ func (h *cityRouter) updateCity(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	var input cityInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		util.ErrorResponseWriter(w, http.StatusBadRequest, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -202,11 +202,11 @@ func (h *cityRouter) updateCity(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			util.ErrorResponseWriter(w, http.StatusNotFound, "City not found")
+			http.Error(w, "City not found", http.StatusNotFound)
 			return
 		}
 
-		util.ErrorResponseWriter(w, http.StatusInternalServerError, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

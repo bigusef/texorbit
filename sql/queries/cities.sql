@@ -18,6 +18,13 @@ FROM cities
 ORDER BY id
 LIMIT $1 OFFSET $2;
 
+-- name: FilterAllCities :many
+SELECT *
+FROM cities
+WHERE name_en ILIKE @query or name_ar ILIKE @query
+ORDER BY id
+LIMIT $1 OFFSET $2;
+
 -- name: ListActiveCity :many
 SELECT *
 FROM cities

@@ -64,6 +64,45 @@ func (q *Queries) DeleteCity(ctx context.Context, id int64) error {
 	return err
 }
 
+const filterAllCities = `-- name: FilterAllCities :many
+SELECT id, name_en, name_ar, is_active
+FROM cities
+WHERE name_en ILIKE $3 or name_ar ILIKE $3
+ORDER BY id
+LIMIT $1 OFFSET $2
+`
+
+type FilterAllCitiesParams struct {
+	Limit  int64
+	Offset int64
+	Query  string
+}
+
+func (q *Queries) FilterAllCities(ctx context.Context, arg FilterAllCitiesParams) ([]City, error) {
+	rows, err := q.db.Query(ctx, filterAllCities, arg.Limit, arg.Offset, arg.Query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []City
+	for rows.Next() {
+		var i City
+		if err := rows.Scan(
+			&i.ID,
+			&i.NameEn,
+			&i.NameAr,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listActiveCity = `-- name: ListActiveCity :many
 SELECT id, name_en, name_ar, is_active
 FROM cities

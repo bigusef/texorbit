@@ -16,8 +16,8 @@ func JsonResponseWriter(w http.ResponseWriter, code int, payload interface{}) {
 
 func JsonListResponseWriter(w http.ResponseWriter, code int, payload interface{}, count int64) {
 	response := struct {
-		Items interface{} `json:"items"`
-		Count int64       `json:"count"`
+		Result interface{} `json:"result"`
+		Count  int64       `json:"count"`
 	}{payload, count}
 
 	JsonResponseWriter(w, code, response)

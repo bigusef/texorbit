@@ -103,9 +103,27 @@ func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
 func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// get limit and offset from parsed ctx and create params
+	// get limit and offset from parsed ctx and filter query
 	page := ctx.Value("pagination").(*middleware.Paginator)
-	cities, err := h.queries.ListAllCities(ctx, db.ListAllCitiesParams{page.Limit, page.Offset})
+	query := r.URL.Query().Get("q")
+
+	var err error
+	var cities []db.City
+	if query != "" {
+		arg := db.FilterAllCitiesParams{
+			Limit:  page.Limit,
+			Offset: page.Offset,
+			Query:  query,
+		}
+		cities, err = h.queries.FilterAllCities(ctx, arg)
+	} else {
+		arg := db.ListAllCitiesParams{
+			Limit:  page.Limit,
+			Offset: page.Offset,
+		}
+		cities, err = h.queries.ListAllCities(ctx, arg)
+	}
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -121,7 +139,7 @@ func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	totalCount, err := h.queries.CitiesCount(r.Context())
+	totalCount, err := h.queries.CitiesCount(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

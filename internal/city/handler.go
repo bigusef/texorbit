@@ -63,18 +63,18 @@ func (h *cityHandler) listCities(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var cities []db.City
 	if query != "" {
-		arg := db.FilterAllCitiesParams{
+		arg := db.FilterCitiesParams{
 			Limit:  page.Limit,
 			Offset: page.Offset,
 			Query:  query,
 		}
-		cities, err = h.queries.FilterAllCities(ctx, arg)
+		cities, err = h.queries.FilterCities(ctx, arg)
 	} else {
-		arg := db.ListAllCitiesParams{
+		arg := db.AllCitiesParams{
 			Limit:  page.Limit,
 			Offset: page.Offset,
 		}
-		cities, err = h.queries.ListAllCities(ctx, arg)
+		cities, err = h.queries.AllCities(ctx, arg)
 	}
 
 	if err != nil {
@@ -106,7 +106,7 @@ func (h *cityHandler) listActiveCities(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: try to make ListActiveCityParams AND ListAllCitiesParams one struct
 	page := ctx.Value("pagination").(*middleware.Paginator)
-	cities, err := h.queries.ListActiveCity(ctx, db.ListActiveCityParams{page.Limit, page.Offset})
+	cities, err := h.queries.ActiveCities(ctx, db.ActiveCitiesParams{page.Limit, page.Offset})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -129,7 +129,7 @@ func (h *cityHandler) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get total cities count
-	totalCount, err := h.queries.ActiveCityCount(ctx)
+	totalCount, err := h.queries.ActiveCitiesCount(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

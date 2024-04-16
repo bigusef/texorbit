@@ -9,17 +9,92 @@ import (
 	"context"
 )
 
-const activeCityCount = `-- name: ActiveCityCount :one
+const activeCities = `-- name: ActiveCities :many
+SELECT id, name_en, name_ar, is_active
+FROM cities
+WHERE is_active = TRUE
+ORDER BY id
+LIMIT $1 OFFSET $2
+`
+
+type ActiveCitiesParams struct {
+	Limit  int64
+	Offset int64
+}
+
+func (q *Queries) ActiveCities(ctx context.Context, arg ActiveCitiesParams) ([]City, error) {
+	rows, err := q.db.Query(ctx, activeCities, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []City
+	for rows.Next() {
+		var i City
+		if err := rows.Scan(
+			&i.ID,
+			&i.NameEn,
+			&i.NameAr,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const activeCitiesCount = `-- name: ActiveCitiesCount :one
 SELECT COUNT(*)
 FROM cities
 WHERE is_active = TRUE
 `
 
-func (q *Queries) ActiveCityCount(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, activeCityCount)
+func (q *Queries) ActiveCitiesCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, activeCitiesCount)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const allCities = `-- name: AllCities :many
+SELECT id, name_en, name_ar, is_active
+FROM cities
+ORDER BY id
+LIMIT $1 OFFSET $2
+`
+
+type AllCitiesParams struct {
+	Limit  int64
+	Offset int64
+}
+
+func (q *Queries) AllCities(ctx context.Context, arg AllCitiesParams) ([]City, error) {
+	rows, err := q.db.Query(ctx, allCities, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []City
+	for rows.Next() {
+		var i City
+		if err := rows.Scan(
+			&i.ID,
+			&i.NameEn,
+			&i.NameAr,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const citiesCount = `-- name: CitiesCount :one
@@ -64,7 +139,7 @@ func (q *Queries) DeleteCity(ctx context.Context, id int64) error {
 	return err
 }
 
-const filterAllCities = `-- name: FilterAllCities :many
+const filterCities = `-- name: FilterCities :many
 SELECT id, name_en, name_ar, is_active
 FROM cities
 WHERE name_en ILIKE $3 or name_ar ILIKE $3
@@ -72,89 +147,14 @@ ORDER BY id
 LIMIT $1 OFFSET $2
 `
 
-type FilterAllCitiesParams struct {
+type FilterCitiesParams struct {
 	Limit  int64
 	Offset int64
 	Query  string
 }
 
-func (q *Queries) FilterAllCities(ctx context.Context, arg FilterAllCitiesParams) ([]City, error) {
-	rows, err := q.db.Query(ctx, filterAllCities, arg.Limit, arg.Offset, arg.Query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []City
-	for rows.Next() {
-		var i City
-		if err := rows.Scan(
-			&i.ID,
-			&i.NameEn,
-			&i.NameAr,
-			&i.IsActive,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listActiveCity = `-- name: ListActiveCity :many
-SELECT id, name_en, name_ar, is_active
-FROM cities
-WHERE is_active = TRUE
-ORDER BY id
-LIMIT $1 OFFSET $2
-`
-
-type ListActiveCityParams struct {
-	Limit  int64
-	Offset int64
-}
-
-func (q *Queries) ListActiveCity(ctx context.Context, arg ListActiveCityParams) ([]City, error) {
-	rows, err := q.db.Query(ctx, listActiveCity, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []City
-	for rows.Next() {
-		var i City
-		if err := rows.Scan(
-			&i.ID,
-			&i.NameEn,
-			&i.NameAr,
-			&i.IsActive,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listAllCities = `-- name: ListAllCities :many
-SELECT id, name_en, name_ar, is_active
-FROM cities
-ORDER BY id
-LIMIT $1 OFFSET $2
-`
-
-type ListAllCitiesParams struct {
-	Limit  int64
-	Offset int64
-}
-
-func (q *Queries) ListAllCities(ctx context.Context, arg ListAllCitiesParams) ([]City, error) {
-	rows, err := q.db.Query(ctx, listAllCities, arg.Limit, arg.Offset)
+func (q *Queries) FilterCities(ctx context.Context, arg FilterCitiesParams) ([]City, error) {
+	rows, err := q.db.Query(ctx, filterCities, arg.Limit, arg.Offset, arg.Query)
 	if err != nil {
 		return nil, err
 	}

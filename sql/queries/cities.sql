@@ -7,25 +7,25 @@ RETURNING id;
 SELECT COUNT(*)
 FROM cities;
 
--- name: ActiveCityCount :one
+-- name: ActiveCitiesCount :one
 SELECT COUNT(*)
 FROM cities
 WHERE is_active = TRUE;
 
--- name: ListAllCities :many
+-- name: AllCities :many
 SELECT *
 FROM cities
 ORDER BY id
 LIMIT $1 OFFSET $2;
 
--- name: FilterAllCities :many
+-- name: FilterCities :many
 SELECT *
 FROM cities
 WHERE name_en ILIKE @query or name_ar ILIKE @query
 ORDER BY id
 LIMIT $1 OFFSET $2;
 
--- name: ListActiveCity :many
+-- name: ActiveCities :many
 SELECT *
 FROM cities
 WHERE is_active = TRUE

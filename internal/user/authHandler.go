@@ -1,4 +1,4 @@
-package router
+package user
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	db "github.com/bigusef/texorbit/internal/database"
 	"github.com/bigusef/texorbit/pkg/config"
 	"github.com/bigusef/texorbit/pkg/util"
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -22,34 +21,13 @@ type userInputData struct {
 	Avatar string `json:"avatar" validate:"required,url"`
 }
 
-type userRouter struct {
+type authHandler struct {
 	conf     *config.Setting
 	queries  *db.Queries
 	validate *validator.Validate
 }
 
-func NewAuthRouter(conf *config.Setting, queries *db.Queries, validate *validator.Validate) http.Handler {
-	router := chi.NewRouter()
-	handler := &userRouter{
-		queries:  queries,
-		conf:     conf,
-		validate: validate,
-	}
-
-	// public
-	router.Post("/login", handler.login)
-	router.Post("/staff-login", handler.staffLogin)
-
-	// staff and customers
-	router.With(
-		jwtauth.Verifier(conf.RefreshAuth),
-		jwtauth.Authenticator(conf.RefreshAuth),
-	).Get("/refresh", handler.refreshAccessToken)
-
-	return router
-}
-
-func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
+func (h *authHandler) login(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	//TODO: change here to get the data from oauth2 logic
@@ -143,7 +121,7 @@ func (h *userRouter) login(w http.ResponseWriter, r *http.Request) {
 	util.JsonResponseWriter(w, http.StatusOK, response)
 }
 
-func (h *userRouter) staffLogin(w http.ResponseWriter, r *http.Request) {
+func (h *authHandler) staffLogin(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	//TODO: change here to get the data from oauth2 logic
@@ -219,7 +197,7 @@ func (h *userRouter) staffLogin(w http.ResponseWriter, r *http.Request) {
 	util.JsonResponseWriter(w, http.StatusOK, response)
 }
 
-func (h *userRouter) refreshAccessToken(w http.ResponseWriter, r *http.Request) {
+func (h *authHandler) refreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// get userId from refresh token

@@ -1,4 +1,4 @@
-package router
+package city
 
 import (
 	"encoding/json"
@@ -8,66 +8,19 @@ import (
 	"github.com/bigusef/texorbit/pkg/middleware"
 	"github.com/bigusef/texorbit/pkg/util"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/jwtauth/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strconv"
 )
 
-// Schema data
-type cityRouter struct {
+type cityHandler struct {
 	conf     *config.Setting
 	queries  *db.Queries
 	validate *validator.Validate
 }
 
-type cityInput struct {
-	NameEn   string `json:"name_en" validate:"required"`
-	NameAr   string `json:"name_ar" validate:"required"`
-	IsActive *bool  `json:"is_active" validate:"required"`
-}
-
-type cityResponse struct {
-	ID       int64  `json:"id"`
-	NameEn   string `json:"name_en"`
-	NameAr   string `json:"name_ar"`
-	IsActive bool   `json:"is_active"`
-}
-
-type activeCityResponse struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
-func NewCityRouter(conf *config.Setting, queries *db.Queries, validate *validator.Validate) http.Handler {
-	r := chi.NewRouter()
-	handler := &cityRouter{
-		queries:  queries,
-		conf:     conf,
-		validate: validate,
-	}
-
-	//only staff
-	r.Group(func(r chi.Router) {
-		r.Use(jwtauth.Verifier(conf.AccessAuth))
-		r.Use(jwtauth.Authenticator(conf.AccessAuth))
-		r.Use(middleware.StaffPermission)
-
-		r.Post("/", handler.createCity)
-		r.With(middleware.Pagination).Get("/", handler.listCities)
-		r.Put("/{id}", handler.updateCity)
-		r.Delete("/{id}", handler.deleteCity)
-	})
-
-	//public
-	r.With(middleware.Pagination).Get("/active", handler.listActiveCities)
-
-	return r
-}
-
-// Handler's
-func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
+func (h *cityHandler) createCity(w http.ResponseWriter, r *http.Request) {
 	var input cityInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -100,7 +53,7 @@ func (h *cityRouter) createCity(w http.ResponseWriter, r *http.Request) {
 	util.JsonResponseWriter(w, http.StatusCreated, map[string]int64{"id": id})
 }
 
-func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
+func (h *cityHandler) listCities(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// get limit and offset from parsed ctx and filter query
@@ -148,7 +101,7 @@ func (h *cityRouter) listCities(w http.ResponseWriter, r *http.Request) {
 	util.JsonListResponseWriter(w, http.StatusOK, response, totalCount)
 }
 
-func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
+func (h *cityHandler) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	//TODO: try to make ListActiveCityParams AND ListAllCitiesParams one struct
@@ -185,7 +138,7 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 	util.JsonListResponseWriter(w, http.StatusOK, response, totalCount)
 }
 
-func (h *cityRouter) updateCity(w http.ResponseWriter, r *http.Request) {
+func (h *cityHandler) updateCity(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -238,7 +191,7 @@ func (h *cityRouter) updateCity(w http.ResponseWriter, r *http.Request) {
 	util.JsonResponseWriter(w, http.StatusOK, response)
 }
 
-func (h *cityRouter) deleteCity(w http.ResponseWriter, r *http.Request) {
+func (h *cityHandler) deleteCity(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	idStr := chi.URLParam(r, "id")

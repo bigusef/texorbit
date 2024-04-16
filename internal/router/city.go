@@ -153,7 +153,7 @@ func (h *cityRouter) listActiveCities(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: try to make ListActiveCityParams AND ListAllCitiesParams one struct
 	page := ctx.Value("pagination").(*middleware.Paginator)
-	cities, err := h.queries.ListActiveCity(ctx, db.ListActiveCityParams{page.Limit, page.Limit})
+	cities, err := h.queries.ListActiveCity(ctx, db.ListActiveCityParams{page.Limit, page.Offset})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

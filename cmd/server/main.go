@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-playground/validator/v10"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"net/http"
 	"reflect"
@@ -29,14 +28,10 @@ func main() {
 
 	validate := initValidate()
 
-	//region Database Setup
-	conn, err := pgxpool.New(ctx, setting.ConnString)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Database Setup
+	conn := config.NewConnectionPool(ctx, setting.ConnString)
 	defer conn.Close()
 	queries := database.New(conn)
-	//endregion
 
 	handler := initHandler(setting, queries, validate)
 

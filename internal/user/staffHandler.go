@@ -13,12 +13,8 @@ type staffHandler struct {
 	validate *validator.Validate
 }
 
-/* staff's users
-- list all staff with filter
-- create staff
-- update staff
-- list customers with filter
-- update customers
-*/
-
 func (h *staffHandler) listStaffHandler(w http.ResponseWriter, r *http.Request) {}
+
+func (h *staffHandler) createStaffHandler(w http.ResponseWriter, r *http.Request) {}
+
+func (h *staffHandler) updateStaffHandler(w http.ResponseWriter, r *http.Request) {}

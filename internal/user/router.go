@@ -43,7 +43,7 @@ func StaffRouter(conf *config.Setting, queries *db.Queries, validate *validator.
 	r.Use(middleware.StaffPermission)
 
 	// Only Staff users [admin]
-	r.Get("/", h.listStaffHandler)
+	r.With(middleware.Pagination).Get("/", h.listStaffHandler)
 	r.Post("/", h.createStaffHandler)
 	r.Put("/{id}", h.updateStaffHandler)
 

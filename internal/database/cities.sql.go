@@ -142,7 +142,8 @@ func (q *Queries) DeleteCity(ctx context.Context, id int64) error {
 const filterCities = `-- name: FilterCities :many
 SELECT id, name_en, name_ar, is_active
 FROM cities
-WHERE name_en ILIKE $3 or name_ar ILIKE $3
+WHERE name_en ILIKE $3
+   or name_ar ILIKE $3
 ORDER BY id
 LIMIT $1 OFFSET $2
 `
